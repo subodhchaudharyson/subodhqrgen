@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Resizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        #outputImage {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Resizer</h1>
+    <input type="file" id="inputImage" accept="image/*">
+    <br>
+    <label for="targetSize">Target Size (KB): </label>
+    <input type="number" id="targetSize" min="1" step="1" value="100">
+    <br>
+    <button onclick="resizeImage()">Resize Image</button>
+    <br>
+    <img id="outputImage" alt="Resized Image">
+
+    <script>
+        async function resizeImage() {
+            const inputImage = document.getElementById('inputImage');
+            const targetSize = document.getElementById('targetSize').value;
+
+            if (inputImage.files.length === 0) {
+                alert('Please select an image.');
+                return;
+            }
+
+            const file = inputImage.files[0];
+
+            const compressedImageBlob = await compressImage(file, targetSize);
+
+            const resizedImage = document.getElementById('outputImage');
+            resizedImage.src = URL.createObjectURL(compressedImageBlob);
+        }
+
+        async function compressImage(file, targetSize) {
+            const maxCompressionQuality = 1;
+            const minCompressionQuality = 0;
+
+            const maxSizeBytes = targetSize * 1024;
+            let compressionQuality = maxCompressionQuality;
+            let compressedImageBlob;
+
+            while (!compressedImageBlob || compressedImageBlob.size > maxSizeBytes) {
+                compressionQuality -= 0.1;
+
+                const compressedImageDataUrl = await new Promise((resolve) => {
+                    const img = new Image();
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        img.src = e.target.result;
+                    };
+
+                    img.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+
+                        ctx.drawImage(img, 0, 0, img.width, img.height);
+
+                        canvas.toBlob((blob) => {
+                            resolve(URL.createObjectURL(blob));
+                        }, file.type, compressionQuality);
+                    };
+
+                    reader.readAsDataURL(file);
+                });
+
+                compressedImageBlob = await fetch(compressedImageDataUrl).then((res) => res.blob());
+            }
+
+            return compressedImageBlob;
+        }
+    </script>
+</body>
+</html>
